@@ -1,5 +1,14 @@
-# boxbreathing
+# Box Breathing
 
-A wbtl.app tool.
+A guided box breathing exercise with visual animation and customizable timing.
 
-Visit: https://boxbreathing.wbtl.app
+https://boxbreathing.wbtl.app
+
+## Output
+
+Production files are in the `dist/` folder:
+- `dist/index.html` - Main application
+
+## Deploy
+
+Copy the contents of `dist/` to any static hosting service.

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Box Breathing - wbtl.app</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%235bb5d5'/><stop offset='100%25' stop-color='%234a9ec4'/></linearGradient></defs><rect width='32' height='32' rx='6' fill='url(%23g)'/><g transform='translate(4,4)'><rect x='6' y='6' width='12' height='12' rx='1' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='6' cy='12' r='1.5' fill='white'/></g></svg>">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f7;
+      --text: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --border: #d2d2d7;
+      --toggle-bg: #e5e5e5;
+      --toggle-knob: #ffffff;
+      --tool-gradient-start: #5bb5d5;
+      --tool-gradient-end: #4a9ec4;
+      --box-outline: rgba(91, 181, 213, 0.25);
+      --box-active: #5bb5d5;
+      --box-dot: #ffffff;
+      --canvas-bg: rgba(0, 0, 0, 0.02);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #000000;
+        --bg-secondary: #1c1c1e;
+        --text: #f5f5f7;
+        --text-secondary: #98989d;
+        --accent: #2997ff;
+        --accent-hover: #40a9ff;
+        --border: #38383a;
+        --toggle-bg: #3a3a3c;
+        --toggle-knob: #ffffff;
+        --box-outline: rgba(91, 181, 213, 0.15);
+        --box-active: #5bb5d5;
+        --box-dot: #ffffff;
+        --canvas-bg: rgba(255, 255, 255, 0.03);
+      }
+    }
+
+    [data-theme="dark"] {
+      --bg: #000000;
+      --bg-secondary: #1c1c1e;
+      --text: #f5f5f7;
+      --text-secondary: #98989d;
+      --accent: #2997ff;
+      --accent-hover: #40a9ff;
+      --border: #38383a;
+      --toggle-bg: #3a3a3c;
+      --toggle-knob: #ffffff;
+      --box-outline: rgba(91, 181, 213, 0.15);
+      --box-active: #5bb5d5;
+      --box-dot: #ffffff;
+      --canvas-bg: rgba(255, 255, 255, 0.03);
+    }
+
+    [data-theme="light"] {
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f7;
+      --text: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --border: #d2d2d7;
+      --toggle-bg: #e5e5e5;
+      --toggle-knob: #ffffff;
+      --box-outline: rgba(91, 181, 213, 0.25);
+      --box-active: #5bb5d5;
+      --box-dot: #ffffff;
+      --canvas-bg: rgba(0, 0, 0, 0.02);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .tool-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--tool-gradient-start), var(--tool-gradient-end));
+    }
+
+    .tool-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .tool-name {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .back-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s ease;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .theme-toggle svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--text-secondary);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--toggle-bg);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: var(--toggle-knob);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease;
+    }
+
+    [data-theme="dark"] .toggle-switch::after,
+    :root:not([data-theme="light"]) .toggle-switch::after {
+      transform: translateX(20px);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) .toggle-switch::after {
+        transform: translateX(0);
+      }
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    /* Box Breathing Canvas */
+    .box-container {
+      position: relative;
+      width: min(80vw, calc(100vh - 280px));
+      height: min(80vw, calc(100vh - 280px));
+      max-width: 700px;
+      max-height: 700px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .box-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .phase-label {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--text);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      text-align: center;
+    }
+
+    .phase-label.visible {
+      opacity: 1;
+    }
+
+    .phase-timer {
+      font-size: 2rem;
+      font-weight: 300;
+      color: var(--text-secondary);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      margin-top: 0.25rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .phase-timer.visible {
+      opacity: 1;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: #fff;
+    }
+
+    /* Settings */
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 560px;
+      width: 100%;
+    }
+
+    .setting-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .setting-group label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .setting-group input[type="number"] {
+      width: 70px;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.875rem;
+      font-family: inherit;
+      text-align: center;
+    }
+
+    .setting-group input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 640px) {
+      .tool-name {
+        font-size: 1.1rem;
+      }
+
+      .header-right {
+        gap: 1rem;
+      }
+
+      .back-link {
+        font-size: 0.8rem;
+      }
+
+      .box-container {
+        width: min(85vw, calc(100vh - 260px));
+        height: min(85vw, calc(100vh - 260px));
+      }
+
+      .phase-label {
+        font-size: 1.25rem;
+      }
+
+      .phase-timer {
+        font-size: 1.5rem;
+      }
+
+      .settings {
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <div class="tool-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="6" y="6" width="12" height="12" rx="1"/>
+          <circle cx="6" cy="12" r="1.5" fill="white" stroke="none"/>
+        </svg>
+      </div>
+      <div class="tool-name">Box Breathing</div>
+    </div>
+    <div class="header-right">
+      <a href="https://wbtl.app" class="back-link">wbtl.app</a>
+      <div class="theme-toggle">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+        <div class="toggle-switch" onclick="toggleTheme()" role="button" tabindex="0" aria-label="Toggle dark mode"></div>
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="content">
+      <div class="box-container">
+        <canvas id="breathCanvas"></canvas>
+        <div class="box-overlay">
+          <div class="phase-label" id="phaseLabel"></div>
+          <div class="phase-timer" id="phaseTimer"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" id="btnPlay" onclick="handlePlay()">
+          <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none"/></svg>
+          Play
+        </button>
+        <button class="btn" id="btnStop" onclick="handleStop()">
+          <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" stroke="none"/></svg>
+          Stop
+        </button>
+      </div>
+
+      <div class="settings">
+        <div class="setting-group">
+          <label for="duration">Duration (s)</label>
+          <input type="number" id="duration" min="1.0" max="30.0" step="0.1" value="4.0">
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="showHints" checked>
+          Show hints
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="showTimer" checked>
+          Show timer
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="counterClockwise">
+          Counter-clockwise
+        </label>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Theme toggle
+    function getSystemTheme() {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function getStoredTheme() {
+      return localStorage.getItem('wbtl-theme');
+    }
+
+    function setTheme(theme) {
+      if (theme === 'system') {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.removeItem('wbtl-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('wbtl-theme', theme);
+      }
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const system = getSystemTheme();
+
+      if (!current) {
+        setTheme(system === 'dark' ? 'light' : 'dark');
+      } else {
+        if (current === system) {
+          setTheme(current === 'dark' ? 'light' : 'dark');
+        } else {
+          setTheme('system');
+        }
+      }
+    }
+
+    (function() {
+      const stored = getStoredTheme();
+      if (stored) setTheme(stored);
+    })();
+
+    document.querySelector('.toggle-switch').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleTheme();
+      }
+    });
+
+    // Box Breathing Logic
+    const phases = ['Breathe In', 'Hold', 'Breathe Out', 'Hold'];
+    const canvas = document.getElementById('breathCanvas');
+    const ctx = canvas.getContext('2d');
+    const phaseLabel = document.getElementById('phaseLabel');
+    const phaseTimer = document.getElementById('phaseTimer');
+    const btnPlay = document.getElementById('btnPlay');
+    const durationInput = document.getElementById('duration');
+    const showHintsInput = document.getElementById('showHints');
+    const showTimerInput = document.getElementById('showTimer');
+    const counterClockwiseInput = document.getElementById('counterClockwise');
+
+    let state = 'stopped'; // 'stopped' | 'playing' | 'paused'
+    let currentPhase = 0;
+    let phaseStartTime = null;
+    let elapsedOnPause = 0;
+    let animFrameId = null;
+    let duration = 4.0;
+    let showHints = true;
+    let showTimer = true;
+    let counterClockwise = false;
+
+    // Load settings
+    function loadSettings() {
+      const d = localStorage.getItem('boxbreathing-duration');
+      if (d !== null) {
+        duration = parseFloat(d);
+        durationInput.value = duration;
+      }
+      const h = localStorage.getItem('boxbreathing-showHints');
+      if (h !== null) {
+        showHints = h === 'true';
+        showHintsInput.checked = showHints;
+      }
+      const t = localStorage.getItem('boxbreathing-showTimer');
+      if (t !== null) {
+        showTimer = t === 'true';
+        showTimerInput.checked = showTimer;
+      }
+      const cc = localStorage.getItem('boxbreathing-counterClockwise');
+      if (cc !== null) {
+        counterClockwise = cc === 'true';
+        counterClockwiseInput.checked = counterClockwise;
+      }
+    }
+
+    loadSettings();
+
+    // Save settings on change
+    durationInput.addEventListener('change', () => {
+      let v = parseFloat(durationInput.value);
+      if (isNaN(v) || v < 1.0) v = 1.0;
+      if (v > 30.0) v = 30.0;
+      v = Math.round(v * 10) / 10;
+      durationInput.value = v;
+      duration = v;
+      localStorage.setItem('boxbreathing-duration', v);
+    });
+
+    showHintsInput.addEventListener('change', () => {
+      showHints = showHintsInput.checked;
+      localStorage.setItem('boxbreathing-showHints', showHints);
+      updateOverlay(currentPhase, state === 'playing' || state === 'paused' ? elapsedOnPause || 0 : 0);
+    });
+
+    showTimerInput.addEventListener('change', () => {
+      showTimer = showTimerInput.checked;
+      localStorage.setItem('boxbreathing-showTimer', showTimer);
+      updateOverlay(currentPhase, state === 'playing' || state === 'paused' ? elapsedOnPause || 0 : 0);
+    });
+
+    counterClockwiseInput.addEventListener('change', () => {
+      counterClockwise = counterClockwiseInput.checked;
+      localStorage.setItem('boxbreathing-counterClockwise', counterClockwise);
+      if (state === 'stopped') drawFrame(0, 0);
+      if (state === 'paused') drawFrame(currentPhase, Math.min(elapsedOnPause / duration, 1.0));
+    });
+
+    // Canvas sizing
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (state === 'stopped') drawFrame(0, 0);
+      if (state === 'paused') drawFrame(currentPhase, Math.min(elapsedOnPause / duration, 1.0));
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Get CSS variable
+    function getCSSVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    // Dot position along the box
+    // Clockwise:         left bottom->top, top left->right, right top->bottom, bottom right->left
+    // Counter-clockwise: left top->bottom, bottom left->right, right bottom->top, top right->left
+    function dotPosition(phase, p, x1, y1, x2, y2) {
+      if (!counterClockwise) {
+        switch (phase) {
+          case 0: return { x: x1, y: y2 - p * (y2 - y1) };
+          case 1: return { x: x1 + p * (x2 - x1), y: y1 };
+          case 2: return { x: x2, y: y1 + p * (y2 - y1) };
+          case 3: return { x: x2 - p * (x2 - x1), y: y2 };
+        }
+      } else {
+        switch (phase) {
+          case 0: return { x: x1, y: y1 + p * (y2 - y1) };
+          case 1: return { x: x1 + p * (x2 - x1), y: y2 };
+          case 2: return { x: x2, y: y2 - p * (y2 - y1) };
+          case 3: return { x: x2 - p * (x2 - x1), y: y1 };
+        }
+      }
+    }
+
+    // Corner positions — start corner for each phase
+    function corners(x1, y1, x2, y2) {
+      if (!counterClockwise) {
+        return [
+          { x: x1, y: y2 }, // bottom-left
+          { x: x1, y: y1 }, // top-left
+          { x: x2, y: y1 }, // top-right
+          { x: x2, y: y2 }, // bottom-right
+        ];
+      } else {
+        return [
+          { x: x1, y: y1 }, // top-left
+          { x: x1, y: y2 }, // bottom-left
+          { x: x2, y: y2 }, // bottom-right
+          { x: x2, y: y1 }, // top-right
+        ];
+      }
+    }
+
+    function drawFrame(phase, progress) {
+      const w = canvas.parentElement.getBoundingClientRect().width;
+      const h = canvas.parentElement.getBoundingClientRect().height;
+      ctx.clearRect(0, 0, w, h);
+
+      const padding = w * 0.12;
+      const x1 = padding;
+      const y1 = padding;
+      const x2 = w - padding;
+      const y2 = h - padding;
+      const cornerRadius = 8;
+
+      const outlineColor = getCSSVar('--box-outline');
+      const activeColor = getCSSVar('--box-active');
+      const dotColor = getCSSVar('--box-dot');
+
+      // Draw static outline (rounded rect)
+      ctx.beginPath();
+      ctx.moveTo(x1 + cornerRadius, y1);
+      ctx.lineTo(x2 - cornerRadius, y1);
+      ctx.quadraticCurveTo(x2, y1, x2, y1 + cornerRadius);
+      ctx.lineTo(x2, y2 - cornerRadius);
+      ctx.quadraticCurveTo(x2, y2, x2 - cornerRadius, y2);
+      ctx.lineTo(x1 + cornerRadius, y2);
+      ctx.quadraticCurveTo(x1, y2, x1, y2 - cornerRadius);
+      ctx.lineTo(x1, y1 + cornerRadius);
+      ctx.quadraticCurveTo(x1, y1, x1 + cornerRadius, y1);
+      ctx.closePath();
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Draw completed sides (full sides for phases before current)
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = activeColor;
+      ctx.lineCap = 'round';
+
+      const c = corners(x1, y1, x2, y2);
+      // Sides: 0 = left (c[0]->c[1]), 1 = top (c[1]->c[2]), 2 = right (c[2]->c[3]), 3 = bottom (c[3]->c[0])
+      const sides = [
+        [c[0], c[1]],
+        [c[1], c[2]],
+        [c[2], c[3]],
+        [c[3], c[0]],
+      ];
+
+      for (let i = 0; i < phase; i++) {
+        ctx.beginPath();
+        ctx.moveTo(sides[i][0].x, sides[i][0].y);
+        ctx.lineTo(sides[i][1].x, sides[i][1].y);
+        ctx.stroke();
+      }
+
+      // Draw current side progress
+      if (progress > 0) {
+        const start = sides[phase][0];
+        const dot = dotPosition(phase, progress, x1, y1, x2, y2);
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(dot.x, dot.y);
+        ctx.stroke();
+      }
+
+      // Draw the dot
+      const dot = progress > 0
+        ? dotPosition(phase, progress, x1, y1, x2, y2)
+        : sides[phase][0];
+
+      // Glow
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = activeColor;
+      ctx.globalAlpha = 0.25;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Dot
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor;
+      ctx.fill();
+      ctx.strokeStyle = activeColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function updateOverlay(phase, remaining) {
+      if (showHints && (state === 'playing' || state === 'paused')) {
+        phaseLabel.textContent = phases[phase];
+        phaseLabel.classList.add('visible');
+      } else {
+        phaseLabel.classList.remove('visible');
+      }
+
+      if (showTimer && (state === 'playing' || state === 'paused')) {
+        phaseTimer.textContent = Math.ceil(remaining).toFixed(0);
+        phaseTimer.classList.add('visible');
+      } else {
+        phaseTimer.classList.remove('visible');
+      }
+    }
+
+    function animate(timestamp) {
+      if (state !== 'playing') return;
+
+      if (phaseStartTime === null) {
+        phaseStartTime = timestamp - (elapsedOnPause * 1000);
+      }
+
+      const elapsed = (timestamp - phaseStartTime) / 1000;
+      const progress = Math.min(elapsed / duration, 1.0);
+      const remaining = Math.max(duration - elapsed, 0);
+
+      drawFrame(currentPhase, progress);
+      updateOverlay(currentPhase, remaining);
+
+      if (progress >= 1.0) {
+        currentPhase = (currentPhase + 1) % 4;
+        phaseStartTime = timestamp;
+        elapsedOnPause = 0;
+      }
+
+      animFrameId = requestAnimationFrame(animate);
+    }
+
+    function updatePlayButton() {
+      if (state === 'playing') {
+        btnPlay.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none"/></svg>Pause';
+      } else {
+        btnPlay.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none"/></svg>Play';
+      }
+    }
+
+    function handlePlay() {
+      if (state === 'stopped') {
+        state = 'playing';
+        currentPhase = 0;
+        elapsedOnPause = 0;
+        phaseStartTime = null;
+        updatePlayButton();
+        animFrameId = requestAnimationFrame(animate);
+      } else if (state === 'playing') {
+        // Pause
+        state = 'paused';
+        const now = performance.now();
+        elapsedOnPause = (now - phaseStartTime) / 1000;
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        updatePlayButton();
+      } else if (state === 'paused') {
+        // Resume
+        state = 'playing';
+        phaseStartTime = null; // will be recalculated in animate
+        updatePlayButton();
+        animFrameId = requestAnimationFrame(animate);
+      }
+    }
+
+    function handleStop() {
+      state = 'stopped';
+      currentPhase = 0;
+      elapsedOnPause = 0;
+      phaseStartTime = null;
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      updatePlayButton();
+      drawFrame(0, 0);
+      updateOverlay(0, 0);
+    }
+
+    // Watch for theme changes to redraw
+    const observer = new MutationObserver(() => {
+      if (state === 'stopped') drawFrame(0, 0);
+      if (state === 'paused') drawFrame(currentPhase, Math.min(elapsedOnPause / duration, 1.0));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (state === 'stopped') drawFrame(0, 0);
+      if (state === 'paused') drawFrame(currentPhase, Math.min(elapsedOnPause / duration, 1.0));
+    });
+
+    // Initial draw
+    drawFrame(0, 0);
+  </script>
+</body>
+</html>
