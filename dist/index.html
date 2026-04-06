@@ -264,6 +264,16 @@
       opacity: 1;
     }
 
+    /* Total time */
+    .total-time {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      font-variant-numeric: tabular-nums;
+      margin-top: 0.25rem;
+    }
+
     /* Controls */
     .controls {
       display: flex;
@@ -444,6 +454,8 @@
         </div>
       </div>
 
+      <div class="total-time" id="totalTime">0:00</div>
+
       <div class="controls">
         <button class="btn btn-primary" id="btnPlay" onclick="handlePlay()">
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none"/></svg>
@@ -534,6 +546,7 @@
     const showHintsInput = document.getElementById('showHints');
     const showTimerInput = document.getElementById('showTimer');
     const counterClockwiseInput = document.getElementById('counterClockwise');
+    const totalTimeEl = document.getElementById('totalTime');
 
     let state = 'stopped'; // 'stopped' | 'playing' | 'paused'
     let currentPhase = 0;
@@ -544,6 +557,8 @@
     let showHints = true;
     let showTimer = true;
     let counterClockwise = false;
+    let totalStartTime = null;
+    let totalPausedAccum = 0;
 
     // Load settings
     function loadSettings() {
@@ -762,6 +777,19 @@
       }
     }
 
+    function formatTotalTime(seconds) {
+      const s = Math.floor(seconds);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return m + ':' + String(sec).padStart(2, '0');
+    }
+
+    function updateTotalTime(timestamp) {
+      if (totalStartTime === null) return;
+      const total = totalPausedAccum + (timestamp - totalStartTime) / 1000;
+      totalTimeEl.textContent = formatTotalTime(total);
+    }
+
     function animate(timestamp) {
       if (state !== 'playing') return;
 
@@ -775,6 +803,7 @@
 
       drawFrame(currentPhase, progress);
       updateOverlay(currentPhase, remaining);
+      updateTotalTime(timestamp);
 
       if (progress >= 1.0) {
         currentPhase = (currentPhase + 1) % 4;
@@ -799,6 +828,8 @@
         currentPhase = 0;
         elapsedOnPause = 0;
         phaseStartTime = null;
+        totalStartTime = performance.now();
+        totalPausedAccum = 0;
         updatePlayButton();
         animFrameId = requestAnimationFrame(animate);
       } else if (state === 'playing') {
@@ -806,12 +837,15 @@
         state = 'paused';
         const now = performance.now();
         elapsedOnPause = (now - phaseStartTime) / 1000;
+        totalPausedAccum += (now - totalStartTime) / 1000;
+        totalStartTime = null;
         if (animFrameId) cancelAnimationFrame(animFrameId);
         updatePlayButton();
       } else if (state === 'paused') {
         // Resume
         state = 'playing';
-        phaseStartTime = null; // will be recalculated in animate
+        phaseStartTime = null;
+        totalStartTime = performance.now();
         updatePlayButton();
         animFrameId = requestAnimationFrame(animate);
       }
@@ -822,10 +856,13 @@
       currentPhase = 0;
       elapsedOnPause = 0;
       phaseStartTime = null;
+      totalStartTime = null;
+      totalPausedAccum = 0;
       if (animFrameId) cancelAnimationFrame(animFrameId);
       updatePlayButton();
       drawFrame(0, 0);
       updateOverlay(0, 0);
+      totalTimeEl.textContent = '0:00';
     }
 
     // Watch for theme changes to redraw
